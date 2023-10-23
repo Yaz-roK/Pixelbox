@@ -8,25 +8,35 @@ canvas.height   = window.innerHeight;
 //--- Canvas ---//
 
 //--- Pixelbox ---//
-const   RES         = 10;
+const   RES             = 10;
 
-const   VOIDCOLOR   = "#000000";
+const   VOIDCOLOR       = "#000000";
 
-const   SAND        = 0;
-const   SANDCOLOR1  = "#ffda79";
-const   SANDCOLOR2  = "#ccae62";
+const   SAND            = 0;
+const   SANDCOLOR1      = "#ffda79";
+const   SANDCOLOR2      = "#ccae62";
+
+const   GRAVEL          = 1;
+const   GRAVELCOLOR1    = "#84817a";
+const   GRAVELCOLOR2    = "#aaa69d";
+
+const   WATER           = 2;
+const   WATERCOLOR1     = "#34ace0";
+const   WATERCOLOR2     = "#227093";
 //--- Pixelbox ---//
 //------ Constants ------//
 
 //------ Classes ------//
 class Element {
     constructor(_x, _y, _type, _grid) {
-        this.type   = _type;
-        this.grid   = _grid;
+        this.type       = _type;
+        this.grid       = _grid;
 
-        this.x      = _x;
-        this.y      = _y;
-        this.color  = Element.initColor(this.type);
+        this.x          = _x;
+        this.y          = _y;
+        this.color      = Element.initColor(this.type);
+
+        this.updated    = false;
     }
 
     static initColor(_type) {
@@ -36,10 +46,22 @@ class Element {
             case SAND:
                 if (rnd <= .9)  return SANDCOLOR1;
                                 return SANDCOLOR2;
+            case GRAVEL:
+                if (rnd <= .9)  return GRAVELCOLOR1;
+                                return GRAVELCOLOR2;
+            case WATER:
+                if (rnd <= .9)  return WATERCOLOR1;
+                                return WATERCOLOR2;
+            case DIRT:
+                if (rnd <= .9)  return DIRTCOLOR1;
+                                return DIRTCOLOR2;
+            case GRASS:
+                if (rnd <= .9)  return GRASSCOLOR1;
+                                return GRASSCOLOR2;
         }
     }
 
-    move(_dx, _dy) {
+    move(_dx, _dy, _in = null) {
         const nextX = this.x + _dx;
         const nextY = this.y + _dy;
 
@@ -57,8 +79,33 @@ class Element {
             this.grid.setElement(this.x, this.y, this);
             this.draw();
 
+            this.updated = true;
             return true;
         }
+
+        if (el.updated)
+            return false;
+
+        if (_in != null && _in.includes(el.type)) {
+            el.x = this.x;
+            el.y = this.y;
+            this.grid.setElement(el.x, el.y, el);
+
+            this.x = nextX;
+            this.y = nextY;
+            this.grid.setElement(this.x, this.y, this);
+
+            this.draw();
+            el.draw();
+
+            this.updated    = true;
+            el.updated      = true;
+            return true;
+        }
+    }
+
+    evolveNextTo(_nextTo) {
+
     }
 
     clear() {
@@ -152,6 +199,23 @@ class Scheduler {
     }
 
     simulateSAND(_el) {
+        if (_el.move(0, 1, [WATER]))
+            return;
+
+        let delta = Math.floor(Math.random() * 2) * 2 - 1;
+        for (let i = 0; i < 2; i++) {
+            if (_el.move(delta, 1, [WATER]))
+                return;
+            delta *= -1;
+        }
+    }
+
+    simulateGRAVEL(_el) {
+        if (_el.move(0, 1, [WATER]))
+            return;
+    }
+
+    simulateWATER(_el) {
         if (_el.move(0, 1))
             return;
 
@@ -161,16 +225,33 @@ class Scheduler {
                 return;
             delta *= -1;
         }
+
+        for (let i = 0; i < 2; i++) {
+            if (_el.move(delta, 0))
+                return;
+            delta *= -1;
+        }
     }
 
     simulate() {
         for (const el of this.elements) {
+            if (el.updated)
+                continue;
+
             switch (el.type) {
                 case SAND:
                     this.simulateSAND(el);
                     break;
+                case GRAVEL:
+                    this.simulateGRAVEL(el);
+                    break;
+                case WATER:
+                    this.simulateWATER(el);
+                    break;
             }
         }
+
+        this.elements.map((el) => el.updated = false);
     }
 }
 
@@ -259,6 +340,20 @@ function initEvents(_cursor) {
                 break;
             case 2:
                 _cursor.rightPressed    = false;
+                break;
+        }
+    });
+
+    window.addEventListener('keydown', (e) => {
+        switch (e.key) {
+            case "a":
+                _cursor.typeSelected = SAND;
+                break;
+            case "z":
+                _cursor.typeSelected = GRAVEL;
+                break;
+            case "e":
+                _cursor.typeSelected = WATER;
                 break;
         }
     });
