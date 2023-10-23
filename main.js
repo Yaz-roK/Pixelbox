@@ -183,10 +183,10 @@ class Scheduler {
     addElement(_x, _y, _type) {
         const el = new Element(_x, _y, _type, this.grid);
 
-        if (this.grid.addElement(_x, _y, el))
+        if (this.grid.addElement(_x, _y, el)) {
             this.elements.push(el);
-
-        el.draw();
+            el.draw();
+        }
     }
 
     removeElement(_x, _y) {
