@@ -14,4 +14,14 @@ canvas {
 
     width: 100vw;
     height: 100vh;
+
+    cursor: none;
+}
+
+canvas.main {
+    z-index: 1;
+}
+
+canvas.cursor {
+    z-index: 2;
 }

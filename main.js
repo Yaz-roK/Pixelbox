@@ -1,14 +1,18 @@
 //------ Constants ------//
 //--- Canvas ---//
-const   canvas  = document.querySelector('canvas');
-const   ctx     = canvas.getContext('2d');
+const   mainCanvas      = document.querySelector('canvas.main');
+const   mainCtx         = mainCanvas.getContext('2d');
+mainCanvas.width        = window.innerWidth;
+mainCanvas.height       = window.innerHeight;
 
-canvas.width    = window.innerWidth;
-canvas.height   = window.innerHeight;
+const   cursorCanvas    = document.querySelector('canvas.cursor');
+const   cursorCtx       = cursorCanvas.getContext('2d');
+cursorCanvas.width      = window.innerWidth;
+cursorCanvas.height     = window.innerHeight;
 //--- Canvas ---//
 
 //--- Pixelbox ---//
-const   RES             = 10;
+const   RES             = 5;
 
 const   VOIDCOLOR       = "#000000";
 
@@ -109,24 +113,24 @@ class Element {
     }
 
     clear() {
-        ctx.save();
-            ctx.fillStyle = VOIDCOLOR;
-            ctx.fillRect(this.x * RES, this.y * RES, RES, RES);
-        ctx.restore();
+        mainCtx.save();
+            mainCtx.fillStyle = VOIDCOLOR;
+            mainCtx.fillRect(this.x * RES, this.y * RES, RES, RES);
+        mainCtx.restore();
     }
 
     draw() {
-        ctx.save();
-            ctx.fillStyle = this.color;
-            ctx.fillRect(this.x * RES, this.y * RES, RES, RES);
-        ctx.restore();
+        mainCtx.save();
+            mainCtx.fillStyle = this.color;
+            mainCtx.fillRect(this.x * RES, this.y * RES, RES, RES);
+        mainCtx.restore();
     }
 }
 
 class Grid {
     constructor() {
-        this.cols       = Math.ceil(canvas.width    / RES);
-        this.rows       = Math.ceil(canvas.height   / RES);
+        this.cols       = Math.ceil(mainCanvas.width    / RES);
+        this.rows       = Math.ceil(mainCanvas.height   / RES);
         this.elements   = new Array(this.cols * this.rows).fill(null);
     }
 
@@ -189,6 +193,25 @@ class Scheduler {
         }
     }
 
+    addElements(_x, _y, _radius, _type) {
+        if (_radius == 1) {
+            this.addElement(_x, _y, _type);
+            return;
+        }
+
+        for (let xx = _x - _radius; xx < _x + _radius; xx++)
+            for (let yy = _y - _radius; yy < _y + _radius; yy++) {
+                const dx    = _x - xx;
+                const dy    = _y - yy;
+                const dist  = dx * dx + dy * dy;
+
+                if (dist <= _radius * _radius) {
+                    if (Math.random() <= .01)
+                        this.addElement(xx, yy, _type);
+                }
+            }
+    }
+
     removeElement(_x, _y) {
         const el = this.grid.removeElement(_x, _y);
         if (el != null) {
@@ -196,6 +219,23 @@ class Scheduler {
             const index = this.elements.indexOf(el);
             this.elements.splice(index, 1);
         }
+    }
+
+    removeElements(_x, _y, _radius) {
+        if (_radius == 1) {
+            this.removeElement(_x, _y);
+            return;
+        }
+
+        for (let xx = _x - _radius; xx < _x + _radius; xx++)
+            for (let yy = _y - _radius; yy < _y + _radius; yy++) {
+                const dx    = _x - xx;
+                const dy    = _y - yy;
+                const dist  = dx * dx + dy * dy;
+
+                if (dist <= _radius * _radius)
+                    this.removeElement(xx, yy);
+            }
     }
 
     simulateSAND(_el) {
@@ -259,8 +299,12 @@ class Cursor {
     constructor(_scheduler) {
         this.scheduler      = _scheduler;
 
+        this.realX          = 0;
+        this.realY          = 0;
         this.x              = 0;
         this.y              = 0;
+
+        this.radius         = 25;
 
         this.leftPressed    = false;
         this.rightPressed   = false;
@@ -268,15 +312,29 @@ class Cursor {
     }
 
     move(_x, _y) {
-        this.x  = Math.floor((_x * this.scheduler.grid.cols) / canvas.width);
-        this.y  = Math.floor((_y * this.scheduler.grid.rows) / canvas.height);
+        this.realX  = _x;
+        this.realY  = _y;
+        this.x      = Math.floor((_x * this.scheduler.grid.cols) / mainCanvas.width);
+        this.y      = Math.floor((_y * this.scheduler.grid.rows) / mainCanvas.height);
     }
 
     run() {
         if (this.leftPressed)
-            this.scheduler.addElement(this.x, this.y, this.typeSelected);
+            this.scheduler.addElements(this.x, this.y, this.radius, this.typeSelected);
         if (this.rightPressed)
-            this.scheduler.removeElement(this.x, this.y);
+            this.scheduler.removeElements(this.x, this.y, this.radius);
+
+        this.draw();
+    }
+
+    draw() {
+        cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
+        cursorCtx.save();
+            cursorCtx.strokeStyle = "#ffffff";
+            cursorCtx.beginPath();
+                cursorCtx.arc(this.realX, this.realY, this.radius * RES, 0, Math.PI * 2);
+            cursorCtx.stroke();
+        cursorCtx.restore();
     }
 }
 //------ Classes ------//
@@ -284,7 +342,7 @@ class Cursor {
 //------ Main ------//
 function main() {
     //  Background
-    canvas.style = "background:" + VOIDCOLOR + ";";
+    mainCanvas.style = "background:" + VOIDCOLOR + ";";
 
     //  Init
     const   scheduler   = new Scheduler();
